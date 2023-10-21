@@ -5,7 +5,7 @@ use embedded_hal::adc::{Channel, OneShot};
 use esp_backtrace as _;
 use esp_println::println;
 use hal::{
-    adc::{AdcCalEfuse, AdcConfig, Attenuation, ADC, ADC1},
+    adc::{AdcCalLine, AdcConfig, Attenuation, ADC, ADC1},
     clock::ClockControl,
     peripherals::Peripherals,
     prelude::*,
@@ -31,14 +31,16 @@ where
     sum / 8
 }
 
-fn read_mean<A, P: Channel<A>>(adc: &mut impl OneShot<A, u16, P>, pin: &mut P) -> u16 {
-    (0..64).map(|_| read(adc, pin)).sum::<u16>() / 64
+fn read_mean<A, P: Channel<A>>(adc: &mut impl OneShot<A, u16, P>, pin: &mut P) -> u32 {
+    ((0..64).map(|_| read(adc, pin) as u32).sum::<u32>() / 64)
+        * Attenuation::Attenuation2p5dB.ref_mv() as u32
+        / 4096
 }
 
 #[entry]
 fn main() -> ! {
     let peripherals = Peripherals::take();
-    let mut system = peripherals.SYSTEM.split();
+    let system = peripherals.SYSTEM.split();
     let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
 
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
@@ -46,27 +48,23 @@ fn main() -> ! {
     let mut delay = Delay::new(&clocks);
     let analog = peripherals.APB_SARADC.split();
     let mut adc_config = AdcConfig::new();
-    let atten = Attenuation::Attenuation2p5dB;
-    let mut pin = adc_config.enable_pin(io.pins.gpio3.into_analog(), atten);
-    let mut adc1 = ADC::<ADC1>::adc(
-        &mut system.peripheral_clock_control,
-        analog.adc1,
-        adc_config,
-    )
-    .unwrap();
 
-    let init_code = ADC1::get_init_code(atten);
-    let cal_mv = ADC1::get_cal_mv(atten);
-    let cal_code = ADC1::get_cal_code(atten);
-
-    println!(
-        "init code {:?}, cal_mv {}, cal_code {:?}",
-        init_code, cal_mv, cal_code
+    let mut pin2p5 = adc_config.enable_pin_with_cal::<_, AdcCalLine<_>>(
+        io.pins.gpio4.into_analog(),
+        Attenuation::Attenuation2p5dB,
     );
+    let mut pin6 = adc_config.enable_pin_with_cal::<_, AdcCalLine<_>>(
+        io.pins.gpio0.into_analog(),
+        Attenuation::Attenuation6dB,
+    );
+    let mut adc1 = ADC::<ADC1>::adc(analog.adc1, adc_config).unwrap();
 
     loop {
-        let reading = read_mean(&mut adc1, &mut pin);
-        println!("{}", reading);
+        let reading = read_mean(&mut adc1, &mut pin2p5);
+        println!("Atten 2.5: {}", reading);
+        delay.delay_ms(100u32);
+        let reading = read_mean(&mut adc1, &mut pin6);
+        println!("Atten 6: {}", reading);
         delay.delay_ms(1000u32);
     }
 }
