@@ -19,23 +19,6 @@
           targets = [ "riscv32imc-unknown-none-elf" ];
         };
 
-        probeRs = pkgs.rustPlatform.buildRustPackage rec {
-          pname = "probe-rs";
-          version = "c9f959e";
-          cargoHash = "sha256-ZOXfIVvLlvB+GNv4E6dS7hNIaEzBD4ObgVKSvcB4xfs=";
-          buildFeatures = [ "cli" ];
-          doCheck = false;
-
-          src = pkgs.fetchFromGitHub {
-            owner = "probe-rs";
-            repo = "probe-rs";
-            rev = version;
-            hash = "sha256-GlVABpgj9G7UP+4Q31n/zUxvg/128HOpJH0uZO6mhfQ=";
-          };
-
-          nativeBuildInputs = [ pkgs.pkg-config ];
-          buildInputs = [ pkgs.libusb1 pkgs.openssl ];
-        };
       in
       {
         devShell = pkgs.mkShell {
@@ -45,7 +28,7 @@
             cargo-espflash
             cargo-outdated
             taplo
-            probeRs
+            probe-rs
             pkg-config
             udev
           ];
