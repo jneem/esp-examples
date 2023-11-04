@@ -1,0 +1,15 @@
+[package]
+name = "rtt-esp-println"
+version = "0.1.0"
+authors = ["Joe Neeman <joeneeman@gmail.com>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+hal = { package = "esp32c3-hal", version = "0.13.0" }
+critical-section = "1.1.2"
+esp-println = { version = "0.7.0", default-features=false, features = ["esp32c3", "rtt"] }
+esp-backtrace = { version = "0.9.0", features = ["esp32c3", "esp-println", "print-rtt", "panic-handler"] }
+
+[profile.dev]
+opt-level = 2
